@@ -1,0 +1,1 @@
+# wan-2.2-t2v-paperspace

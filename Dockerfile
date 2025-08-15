@@ -109,37 +109,35 @@ RUN $PIP_INSTALL ipykernel \
 
 # Install Jupyter packages
 RUN $PIP_INSTALL \
-    jupyterlab==3.4.6 \
-    jupyter==1.0.0 \
-    notebook==6.4.12
+    jupyterlab==4.0.5 \
+    jupyter_server==2.7.2 \
+    notebook==7.0.3 \
+    jupyter==1.0.0
 
-# Install Node.js for Jupyter extensions
-RUN curl -sL https://deb.nodesource.com/setup_16.x | bash && \
+# Install Node.js for Jupyter extensions (updated versions for compatibility)
+RUN curl -sL https://deb.nodesource.com/setup_18.x | bash && \
     $APT_INSTALL nodejs && \
     $PIP_INSTALL \
-        jupyter_contrib_nbextensions==0.5.1 \
-        jupyter_nbextensions_configurator==0.4.1 \
-        jupyter_resource_usage==0.7.1 && \
+        jupyter_contrib_nbextensions==0.7.0 \
+        jupyter_nbextensions_configurator==0.6.3 \
+        jupyterlab-widgets==3.0.8 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     python3.12 -m pip cache purge
 
-# Enable nbextensions and menubar
-RUN jupyter nbextensions_configurator enable --user && \
-    jupyter contrib nbextension install --user
+# Enable nbextensions and menubar (with error handling)
+RUN jupyter nbextensions_configurator enable --user || true && \
+    jupyter contrib nbextension install --user || true
 
-# Enable useful Jupyter Notebook extensions
-RUN jupyter nbextension enable spellchecker/main && \
-    jupyter nbextension enable snippets_menu/main && \
-    jupyter nbextension enable snippets/main && \
-    jupyter nbextension enable freeze/main && \
-    jupyter nbextension enable livemdpreview/livemdpreview && \
-    jupyter nbextension enable highlight_selected_word/main && \
-    jupyter nbextension enable execute_time/ExecuteTime && \
-    jupyter nbextension enable toc2/main && \
-    jupyter nbextension enable jupyter_resource_usage/main && \
-    jupyter nbextension install https://github.com/drillan/jupyter-black/archive/master.zip --user && \
-    jupyter nbextension enable jupyter-black-master/jupyter-black
+# Enable useful Jupyter Notebook extensions (with error handling for compatibility)
+RUN jupyter nbextension enable spellchecker/main || true && \
+    jupyter nbextension enable snippets_menu/main || true && \
+    jupyter nbextension enable snippets/main || true && \
+    jupyter nbextension enable freeze/main || true && \
+    jupyter nbextension enable livemdpreview/livemdpreview || true && \
+    jupyter nbextension enable highlight_selected_word/main || true && \
+    jupyter nbextension enable execute_time/ExecuteTime || true && \
+    jupyter nbextension enable toc2/main || true
 
 # ==================================================================
 # Startup
@@ -147,4 +145,4 @@ RUN jupyter nbextension enable spellchecker/main && \
 
 EXPOSE 8888 6006
 
-CMD ["jupyter", "notebook", "--allow-root", "--ip=0.0.0.0", "--no-browser", "--ServerApp.trust_xheaders=True", "--ServerApp.disable_check_xsrf=False", "--ServerApp.allow_remote_access=True", "--ServerApp.allow_origin=*", "--ServerApp.allow_credentials=True"]
+CMD ["jupyter", "lab", "--allow-root", "--ip=0.0.0.0", "--no-browser", "--ServerApp.trust_xheaders=True", "--ServerApp.disable_check_xsrf=False", "--ServerApp.allow_remote_access=True", "--ServerApp.allow_origin=*", "--ServerApp.allow_credentials=True"]

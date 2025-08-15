@@ -8,7 +8,7 @@ ENV SHELL=/bin/bash
 
 # Convenient environment variables for package installation
 ENV APT_INSTALL="apt-get install -y --no-install-recommends"
-ENV PIP_INSTALL="python -m pip --no-cache-dir install"
+ENV PIP_INSTALL="python3.12 -m pip --no-cache-dir install"
 
 # Set up locale and essentials
 RUN apt-get update --fix-missing && $APT_INSTALL \
@@ -55,8 +55,8 @@ RUN echo 'source /etc/bash_completion' >> /root/.bashrc \
  && echo 'set show-all-if-ambiguous on' >> /root/.inputrc \
  && echo 'set completion-query-items 200' >> /root/.inputrc
 
-# Upgrade pip and install torch 2.8.0+cu128
-RUN python -m pip install --upgrade pip setuptools wheel
+# Upgrade pip and install torch 2.8.0+cu128 (use python3.12 explicitly)
+RUN python3.12 -m pip install --upgrade pip setuptools wheel
 
 # Install PyTorch + related (matching CUDA 12.8)
 RUN $PIP_INSTALL \
@@ -101,7 +101,7 @@ WORKDIR /workspace
 
 # Install ipykernel so you can select this env in notebooks
 RUN $PIP_INSTALL ipykernel \
- && python -m ipykernel install --user --name torch28 --display-name "Python (torch2.8-cu128)"
+ && python3.12 -m ipykernel install --user --name torch28 --display-name "Python (torch2.8-cu128)"
 
 # ==================================================================
 # JupyterLab & Notebook with Extensions
@@ -144,7 +144,7 @@ RUN jupyter nbextension enable spellchecker/main && \
 # ------------------------------------------------------------------
 
 # Generate Jupyter config and enable CPU usage tracking
-RUN jupyter notebook --generate-config && \
+RUN python3.12 -c "import jupyter" && jupyter notebook --generate-config && \
     echo "c.ResourceUseDisplay.track_cpu_percent = True" >> ~/.jupyter/jupyter_notebook_config.py && \
     echo "c.ResourceUseDisplay.enable_prometheus_metrics = False" >> ~/.jupyter/jupyter_notebook_config.py
 

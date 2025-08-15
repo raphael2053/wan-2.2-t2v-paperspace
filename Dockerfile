@@ -40,6 +40,7 @@ RUN apt-get update --fix-missing && $APT_INSTALL \
     manpages \
     manpages-dev \
     openssh-client \
+    openssh-server \
     iputils-ping \
     sudo \
     dialog \
@@ -48,6 +49,10 @@ RUN apt-get update --fix-missing && $APT_INSTALL \
 # Ensure python3.12 is default python
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
  && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+
+# Configure pip to always use --break-system-packages
+RUN mkdir -p /root/.pip && \
+    echo '[global]\nbreak-system-packages = true' > /root/.pip/pip.conf
 
 # Configure bash completion and readline
 RUN echo 'source /etc/bash_completion' >> /root/.bashrc \
@@ -81,7 +86,12 @@ RUN $PIP_INSTALL \
     ipywidgets \
     fastapi \
     uvicorn \
-    pydantic
+    pydantic \
+
+# Install Platform-specific Python packages
+RUN $PIP_INSTALL \
+    huggingface_hub[cli] \
+    comfy-cli
 
 # Install Wan2.2 specific requirements
 RUN $PIP_INSTALL \
@@ -140,9 +150,45 @@ RUN jupyter nbextension enable spellchecker/main || true && \
     jupyter nbextension enable toc2/main || true
 
 # ==================================================================
+# SSH Configuration
+# ------------------------------------------------------------------
+
+# Configure SSH server
+RUN mkdir -p /var/run/sshd && \
+    mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+
+# Create startup script to handle SSH and Jupyter
+RUN tee /start.sh > /dev/null <<EOF
+#!/bin/bash
+
+# Setup SSH keys from environment if provided
+if [ -n "$PUBLIC_KEY" ]; then
+    mkdir -p /root/.ssh
+    chmod 700 /root/.ssh
+    echo "$PUBLIC_KEY" > /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/authorized_keys
+    echo "SSH public key configured"
+fi
+
+# Start SSH daemon
+service ssh start
+echo "SSH service started"
+
+# Start Jupyter Lab
+echo "Starting Jupyter Lab..."
+exec jupyter lab --allow-root --ip=0.0.0.0 --no-browser --ServerApp.trust_xheaders=True --ServerApp.disable_check_xsrf=False --ServerApp.allow_remote_access=True --ServerApp.allow_origin=* --ServerApp.allow_credentials=True
+EOF
+
+RUN chmod +x /start.sh
+
+# ==================================================================
 # Startup
 # ------------------------------------------------------------------
 
-EXPOSE 8888 6006
+EXPOSE 8888 6006 22
 
-CMD ["jupyter", "lab", "--allow-root", "--ip=0.0.0.0", "--no-browser", "--ServerApp.trust_xheaders=True", "--ServerApp.disable_check_xsrf=False", "--ServerApp.allow_remote_access=True", "--ServerApp.allow_origin=*", "--ServerApp.allow_credentials=True"]
+CMD ["/start.sh"]

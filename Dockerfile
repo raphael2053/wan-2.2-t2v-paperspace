@@ -119,7 +119,10 @@ RUN curl -sL https://deb.nodesource.com/setup_16.x | bash && \
     $PIP_INSTALL \
         jupyter_contrib_nbextensions==0.5.1 \
         jupyter_nbextensions_configurator==0.4.1 \
-        jupyter_resource_usage==0.7.1
+        jupyter_resource_usage==0.7.1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    python3.12 -m pip cache purge
 
 # Enable nbextensions and menubar
 RUN jupyter nbextensions_configurator enable --user && \
@@ -137,13 +140,6 @@ RUN jupyter nbextension enable spellchecker/main && \
     jupyter nbextension enable jupyter_resource_usage/main && \
     jupyter nbextension install https://github.com/drillan/jupyter-black/archive/master.zip --user && \
     jupyter nbextension enable jupyter-black-master/jupyter-black
-
-# ==================================================================
-# Add Jupyter Notebook configurations
-# ------------------------------------------------------------------
-# Get predefined extensions and macros
-COPY notebook.json ./
-RUN rm ~/.jupyter/nbconfig/notebook.json && mv ./notebook.json ~/.jupyter/nbconfig/
 
 # ==================================================================
 # Startup

@@ -12,6 +12,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
+        name: Checkout code
+        uses: actions/checkout@v4
+      -
+        name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       -
@@ -27,5 +41,8 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v4
         with:
+          context: .
           push: true
           tags: raphael2057/torch28-cu128:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

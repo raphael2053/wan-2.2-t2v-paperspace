@@ -144,7 +144,7 @@ RUN jupyter nbextension enable spellchecker/main && \
 # ------------------------------------------------------------------
 
 # Generate Jupyter config and enable CPU usage tracking
-RUN python3.12 -c "import jupyter" && jupyter notebook --generate-config && \
+RUN jupyter notebook --generate-config && \
     echo "c.ResourceUseDisplay.track_cpu_percent = True" >> ~/.jupyter/jupyter_notebook_config.py && \
     echo "c.ResourceUseDisplay.enable_prometheus_metrics = False" >> ~/.jupyter/jupyter_notebook_config.py
 
@@ -154,4 +154,4 @@ RUN python3.12 -c "import jupyter" && jupyter notebook --generate-config && \
 
 EXPOSE 8888 6006
 
-CMD jupyter notebook --allow-root --ip=0.0.0.0 --no-browser --ServerApp.trust_xheaders=True --ServerApp.disable_check_xsrf=False --ServerApp.allow_remote_access=True --ServerApp.allow_origin='*' --ServerApp.allow_credentials=True
+CMD ["jupyter", "notebook", "--allow-root", "--ip=0.0.0.0", "--no-browser", "--ServerApp.trust_xheaders=True", "--ServerApp.disable_check_xsrf=False", "--ServerApp.allow_remote_access=True", "--ServerApp.allow_origin=*", "--ServerApp.allow_credentials=True"]

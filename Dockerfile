@@ -8,7 +8,7 @@ ENV SHELL=/bin/bash
 
 # Convenient environment variables for package installation
 ENV APT_INSTALL="apt-get install -y --no-install-recommends"
-ENV PIP_INSTALL="python3.12 -m pip --no-cache-dir install"
+ENV PIP_INSTALL="python3.12 -m pip --no-cache-dir install --break-system-packages"
 
 # Set up locale and essentials
 RUN apt-get update --fix-missing && $APT_INSTALL \
@@ -56,7 +56,7 @@ RUN echo 'source /etc/bash_completion' >> /root/.bashrc \
  && echo 'set completion-query-items 200' >> /root/.inputrc
 
 # Upgrade pip and install torch 2.8.0+cu128 (use python3.12 explicitly)
-RUN python3.12 -m pip install --upgrade pip setuptools wheel
+RUN python3.12 -m pip install --upgrade pip setuptools wheel --break-system-packages
 
 # Install PyTorch + related (matching CUDA 12.8)
 RUN $PIP_INSTALL \

@@ -1,5 +1,5 @@
 # Dockerfile for stable, reproducible PyTorch 2.8.0+cu128 + CUDA 12.8 environment
-FROM nvidia/cuda:12.8-devel-ubuntu22.04
+FROM nvidia/cuda:12.8.1-devel-ubuntu24.04
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive

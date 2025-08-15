@@ -1,5 +1,10 @@
 # wan-2.2-t2v-paperspace
 
+Docker Login:
+```
+docker login -u raphael2057
+```
+
 build docker image: 
 ```
 docker buildx create --use

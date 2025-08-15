@@ -86,7 +86,7 @@ RUN $PIP_INSTALL \
     ipywidgets \
     fastapi \
     uvicorn \
-    pydantic \
+    pydantic
 
 # Install Platform-specific Python packages
 RUN $PIP_INSTALL \

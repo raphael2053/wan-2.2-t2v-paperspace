@@ -138,15 +138,12 @@ RUN jupyter nbextension enable spellchecker/main && \
     jupyter nbextension install https://github.com/drillan/jupyter-black/archive/master.zip --user && \
     jupyter nbextension enable jupyter-black-master/jupyter-black
 
-
 # ==================================================================
-# Jupyter Notebook Configuration
+# Add Jupyter Notebook configurations
 # ------------------------------------------------------------------
-
-# Generate Jupyter config and enable CPU usage tracking
-RUN jupyter notebook --generate-config && \
-    echo "c.ResourceUseDisplay.track_cpu_percent = True" >> ~/.jupyter/jupyter_notebook_config.py && \
-    echo "c.ResourceUseDisplay.enable_prometheus_metrics = False" >> ~/.jupyter/jupyter_notebook_config.py
+# Get predefined extensions and macros
+COPY notebook.json ./
+RUN rm ~/.jupyter/nbconfig/notebook.json && mv ./notebook.json ~/.jupyter/nbconfig/
 
 # ==================================================================
 # Startup

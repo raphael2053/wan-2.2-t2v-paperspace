@@ -56,7 +56,7 @@ RUN echo 'source /etc/bash_completion' >> /root/.bashrc \
  && echo 'set completion-query-items 200' >> /root/.inputrc
 
 # Upgrade pip and install torch 2.8.0+cu128 (use python3.12 explicitly)
-RUN python3.12 -m pip install --upgrade pip setuptools wheel --break-system-packages
+RUN python3.12 -m pip install --upgrade --ignore-installed pip setuptools wheel --break-system-packages
 
 # Install PyTorch + related (matching CUDA 12.8)
 RUN $PIP_INSTALL \

@@ -20,9 +20,9 @@ RUN apt-get update --fix-missing && $APT_INSTALL \
     build-essential \
     unzip \
     pkg-config \
-    python3.11 \
-    python3.11-venv \
-    python3.11-distutils \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
     python3-pip \
     bash-completion \
     readline-common \
@@ -45,8 +45,8 @@ RUN apt-get update --fix-missing && $APT_INSTALL \
     dialog \
     && rm -rf /var/lib/apt/lists/*
 
-# Ensure python3.11 is default python
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+# Ensure python3.12 is default python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
  && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
 
 # Configure bash completion and readline

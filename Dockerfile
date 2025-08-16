@@ -49,6 +49,7 @@ RUN apt-get update --fix-missing && $APT_INSTALL \
     net-tools \
     sudo \
     dialog \
+    ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
 # Ensure python3 is default python
@@ -107,8 +108,31 @@ RUN $PIP_INSTALL \
     easydict \
     ftfy \
     dashscope \
-    imageio-ffmpeg \
-    flash_attn
+    imageio-ffmpeg
+
+# Install flash attention (requires compilation, done separately for better error handling)
+RUN $PIP_INSTALL flash_attn --no-build-isolation || echo "Flash attention installation failed, continuing without it"
+
+# Install ComfyUI specific requirements
+RUN $PIP_INSTALL \
+    "comfyui-frontend-package==1.25.8" \
+    "comfyui-workflow-templates==0.1.59" \
+    "comfyui-embedded-docs==0.2.6" \
+    torchsde \
+    einops \
+    sentencepiece \
+    "safetensors>=0.4.2" \
+    "aiohttp>=3.11.8" \
+    "yarl>=1.18.0" \
+    pyyaml \
+    psutil \
+    alembic \
+    SQLAlchemy \
+    "av>=14.2.0" \
+    "kornia>=0.7.1" \
+    spandrel \
+    soundfile \
+    "pydantic-settings~=2.0"
 
 # Create workspace dir
 WORKDIR /workspace
@@ -151,8 +175,9 @@ RUN mkdir -p /var/run/sshd && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 
 # Create startup script to handle SSH and Jupyter
-RUN tee /start.sh > /dev/null <<EOF
+RUN tee /start.sh > /dev/null <<'EOF'
 #!/bin/bash
+set -e
 
 # Setup SSH keys from environment if provided
 if [ -n "$PUBLIC_KEY" ]; then
@@ -167,8 +192,12 @@ fi
 
 # Start SSH daemon
 service ssh start
-echo "SSH service started"
-
+if [ $? -eq 0 ]; then
+    echo "SSH service started successfully"
+else
+    echo "Failed to start SSH service"
+    exit 1
+fi
 
 # ==================================================================
 # ComfyUI Setup
@@ -176,28 +205,48 @@ echo "SSH service started"
 
 # Setup ComfyUI
 echo "Setting up ComfyUI..."
-echo "Installing ComfyUI to workspace..."
-export WORKSPACE="/workspace/comfyui"
-yes | comfy --workspace="$WORKSPACE" install
+export WORKSPACE_DIR="/workspace/comfyui"
 
-if [ -d "/workspace/comfyui" ]; then
-    echo "ComfyUI directory exists, setting default path"
-    comfy set-default /workspace/comfyui/
+# Create ComfyUI workspace directory
+mkdir -p "$WORKSPACE_DIR"
+
+# Install ComfyUI only if it doesn't exist
+if [ ! -f "$WORKSPACE_DIR/main.py" ]; then
+    echo "ComfyUI not found, installing to workspace..."
+    cd "$WORKSPACE_DIR"
+    
+    # Install ComfyUI with better error handling
+    echo "y" | comfy --workspace="$WORKSPACE_DIR" install || {
+        echo "ComfyUI installation failed with comfy-cli, trying alternative method..."
+        git clone https://github.com/comfyanonymous/ComfyUI.git . || {
+            echo "Failed to clone ComfyUI repository"
+            echo "Continuing without ComfyUI..."
+        }
+    }
+else
+    echo "ComfyUI already installed, skipping installation"
+fi
+
+if [ -d "$WORKSPACE_DIR" ] && [ -f "$WORKSPACE_DIR/main.py" ]; then
+    echo "ComfyUI directory exists and main.py found"
+    comfy set-default "$WORKSPACE_DIR/" 2>/dev/null || echo "Could not set ComfyUI default path"
     
     # Start ComfyUI in background
     echo "Starting ComfyUI..."
-    nohup comfy launch -- --listen 0.0.0.0 --port 8080 &
+    cd "$WORKSPACE_DIR"
+    nohup comfy launch -- --listen 0.0.0.0 --port 8080 > /var/log/comfyui.log 2>&1 &
     COMFY_PID=$!
     echo "ComfyUI started with PID: $COMFY_PID on port 8080"
     echo "ComfyUI is running as an independent process"
+    echo "ComfyUI logs available at: /var/log/comfyui.log"
     
     # Wait a moment and check if ComfyUI is still running
-    sleep 3
+    sleep 5
     if kill -0 $COMFY_PID 2>/dev/null; then
         echo "ComfyUI is running successfully"
         echo "Access ComfyUI at: http://localhost:8080"
     else
-        echo "WARNING: ComfyUI may have failed to start"
+        echo "WARNING: ComfyUI may have failed to start, check logs at /var/log/comfyui.log"
     fi
 else
     echo "ComfyUI installation failed, skipping ComfyUI startup"
@@ -207,6 +256,9 @@ fi
 # ==================================================================
 # Jupyter Setup
 # ------------------------------------------------------------------
+
+# Change back to workspace root
+cd /workspace
 
 # Start Jupyter Lab
 echo "Starting Jupyter Lab..."

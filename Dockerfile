@@ -157,6 +157,9 @@ if [ -n "$PUBLIC_KEY" ]; then
     echo "$PUBLIC_KEY" > /root/.ssh/authorized_keys
     chmod 600 /root/.ssh/authorized_keys
     echo "SSH public key configured"
+else
+    echo "No PUBLIC_KEY provided - SSH access will not be available"
+    echo "To enable SSH access, set the PUBLIC_KEY environment variable with your public key"
 fi
 
 # Start SSH daemon

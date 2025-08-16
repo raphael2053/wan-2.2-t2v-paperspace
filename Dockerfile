@@ -5,7 +5,9 @@ FROM nvidia/cuda:12.8.1-devel-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV SHELL=/bin/bash
-ENV PUBLIC_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDTZDMPu+VfsxfKyR1geHFo8FoU6b+K8syw3AZuMAYpWbxWzsyjy3Y9r0EkhqyO+svUZ2xGrrdELPW6Rh6NDW4+MoF11r0bczdgvDX3hibktR33+P86GfvBBzQ8woIxzM4CHu3cfiX6u28bwfcg0jx+o3qwN3YzL5QJM6FjCNVLwEiXIF6zSTlsvzRHDXY89IYQh6TWIgFdhFufBYEkY553qzaJErayLimx3n4heqOjY4YeQ5u+uI1uugSJbIyNNrw3SPbMDTCBGPGC9uV27YPxkxVH3wgP3tSchS4VWGGlyczIwWwsP8ZHRwZUjybp7pmNKq65rB/0dnBNYocFWHoHdeq5Ac/jSv66uRTV1yCljL+4meH5iNW7B8X0MOaNQ65nr6lNPb6DrRHFQT0GTKCUDS9pGeuruv+zwo8258Idwd176A/RM4qSeisq9oIEs0qCDDEc3Rw7uCnaew+CEUs55i9qZ5Te692X6UJW7lUG1I3LUdA9poyJQVCxm5uXqhk= raphael.guan@icloud.com"  # Public SSH key for root user, set at runtime
+
+# Public SSH key for root user, set at runtime
+ENV PUBLIC_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDTZDMPu+VfsxfKyR1geHFo8FoU6b+K8syw3AZuMAYpWbxWzsyjy3Y9r0EkhqyO+svUZ2xGrrdELPW6Rh6NDW4+MoF11r0bczdgvDX3hibktR33+P86GfvBBzQ8woIxzM4CHu3cfiX6u28bwfcg0jx+o3qwN3YzL5QJM6FjCNVLwEiXIF6zSTlsvzRHDXY89IYQh6TWIgFdhFufBYEkY553qzaJErayLimx3n4heqOjY4YeQ5u+uI1uugSJbIyNNrw3SPbMDTCBGPGC9uV27YPxkxVH3wgP3tSchS4VWGGlyczIwWwsP8ZHRwZUjybp7pmNKq65rB/0dnBNYocFWHoHdeq5Ac/jSv66uRTV1yCljL+4meH5iNW7B8X0MOaNQ65nr6lNPb6DrRHFQT0GTKCUDS9pGeuruv+zwo8258Idwd176A/RM4qSeisq9oIEs0qCDDEc3Rw7uCnaew+CEUs55i9qZ5Te692X6UJW7lUG1I3LUdA9poyJQVCxm5uXqhk= raphael.guan@icloud.com"
 
 # Convenient environment variables for package installation
 ENV APT_INSTALL="apt-get install -y --no-install-recommends"
@@ -184,7 +186,7 @@ if [ -d "/workspace/comfyui" ]; then
     
     # Start ComfyUI in background
     echo "Starting ComfyUI..."
-    nohup comfy launch --listen 0.0.0.0 --port 8080 &
+    nohup comfy launch -- --listen 0.0.0.0 --port 8080 &
     COMFY_PID=$!
     echo "ComfyUI started with PID: $COMFY_PID on port 8080"
     echo "ComfyUI is running as an independent process"

@@ -5,6 +5,7 @@ FROM nvidia/cuda:12.8.1-devel-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV SHELL=/bin/bash
+ENV PUBLIC_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDTZDMPu+VfsxfKyR1geHFo8FoU6b+K8syw3AZuMAYpWbxWzsyjy3Y9r0EkhqyO+svUZ2xGrrdELPW6Rh6NDW4+MoF11r0bczdgvDX3hibktR33+P86GfvBBzQ8woIxzM4CHu3cfiX6u28bwfcg0jx+o3qwN3YzL5QJM6FjCNVLwEiXIF6zSTlsvzRHDXY89IYQh6TWIgFdhFufBYEkY553qzaJErayLimx3n4heqOjY4YeQ5u+uI1uugSJbIyNNrw3SPbMDTCBGPGC9uV27YPxkxVH3wgP3tSchS4VWGGlyczIwWwsP8ZHRwZUjybp7pmNKq65rB/0dnBNYocFWHoHdeq5Ac/jSv66uRTV1yCljL+4meH5iNW7B8X0MOaNQ65nr6lNPb6DrRHFQT0GTKCUDS9pGeuruv+zwo8258Idwd176A/RM4qSeisq9oIEs0qCDDEc3Rw7uCnaew+CEUs55i9qZ5Te692X6UJW7lUG1I3LUdA9poyJQVCxm5uXqhk= raphael.guan@icloud.com"  # Public SSH key for root user, set at runtime
 
 # Convenient environment variables for package installation
 ENV APT_INSTALL="apt-get install -y --no-install-recommends"
@@ -157,45 +158,57 @@ if [ -n "$PUBLIC_KEY" ]; then
     chmod 700 /root/.ssh
     echo "$PUBLIC_KEY" > /root/.ssh/authorized_keys
     chmod 600 /root/.ssh/authorized_keys
-    echo "SSH public key configured"
+    echo "SSH public key configured from PUBLIC_KEY environment variable"
 else
-    echo "No PUBLIC_KEY provided - SSH access will not be available"
-    echo "To enable SSH access, set the PUBLIC_KEY environment variable with your public key"
+    echo "No PUBLIC_KEY provided at startup - SSH key authentication not configured"
 fi
 
 # Start SSH daemon
 service ssh start
 echo "SSH service started"
 
-# # Setup ComfyUI
-# echo "Setting up ComfyUI..."
-# if [ -d "/workspace/comfyui" ]; then
-#     echo "ComfyUI directory exists, setting default path"
-#     comfy set-default /workspace/comfyui/
+
+# ==================================================================
+# ComfyUI Setup
+# ------------------------------------------------------------------
+
+# Setup ComfyUI
+echo "Setting up ComfyUI..."
+echo "Installing ComfyUI to workspace..."
+export WORKSPACE="/workspace/comfyui"
+yes | comfy --workspace="$WORKSPACE" install
+
+if [ -d "/workspace/comfyui" ]; then
+    echo "ComfyUI directory exists, setting default path"
+    comfy set-default /workspace/comfyui/
     
-#     # Start ComfyUI in background
-#     echo "Starting ComfyUI..."
-#     nohup comfy launch -- --listen 0.0.0.0 --port 8080 &
-#     COMFY_PID=$!
-#     echo "ComfyUI started with PID: $COMFY_PID on port 8080"
-#     echo "ComfyUI is running as an independent process"
+    # Start ComfyUI in background
+    echo "Starting ComfyUI..."
+    nohup comfy launch --listen 0.0.0.0 --port 8080 &
+    COMFY_PID=$!
+    echo "ComfyUI started with PID: $COMFY_PID on port 8080"
+    echo "ComfyUI is running as an independent process"
     
-#     # Wait a moment and check if ComfyUI is still running
-#     sleep 3
-#     if kill -0 $COMFY_PID 2>/dev/null; then
-#         echo "ComfyUI is running successfully"
-#         echo "Access ComfyUI at: http://localhost:8080"
-#     else
-#         echo "WARNING: ComfyUI may have failed to start"
-#     fi
-# else
-#     echo "ComfyUI directory /workspace/comfyui does not exist, skipping ComfyUI setup"
-#     echo "To use ComfyUI, please install it in /workspace/comfyui/"
-# fi
+    # Wait a moment and check if ComfyUI is still running
+    sleep 3
+    if kill -0 $COMFY_PID 2>/dev/null; then
+        echo "ComfyUI is running successfully"
+        echo "Access ComfyUI at: http://localhost:8080"
+    else
+        echo "WARNING: ComfyUI may have failed to start"
+    fi
+else
+    echo "ComfyUI installation failed, skipping ComfyUI startup"
+    echo "Check the installation logs above for details"
+fi
+
+# ==================================================================
+# Jupyter Setup
+# ------------------------------------------------------------------
 
 # Start Jupyter Lab
 echo "Starting Jupyter Lab..."
-exec jupyter lab --allow-root --ip=0.0.0.0 --no-browser --ServerApp.trust_xheaders=True --ServerApp.disable_check_xsrf=False --ServerApp.allow_remote_access=True --ServerApp.allow_origin=* --ServerApp.allow_credentials=True
+exec jupyter lab --allow-root --ip=0.0.0.0 --port=8888 --no-browser --ServerApp.token='' --ServerApp.password='' --ServerApp.trust_xheaders=True --ServerApp.disable_check_xsrf=False --ServerApp.allow_remote_access=True --ServerApp.allow_origin=* --ServerApp.allow_credentials=True
 EOF
 
 RUN chmod +x /start.sh
@@ -204,6 +217,6 @@ RUN chmod +x /start.sh
 # Startup
 # ------------------------------------------------------------------
 
-EXPOSE 8888 8080 6006 22
+EXPOSE 8888 8080 22
 
 CMD ["/start.sh"]

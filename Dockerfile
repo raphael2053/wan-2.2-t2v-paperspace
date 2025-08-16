@@ -117,37 +117,22 @@ RUN $PIP_INSTALL ipykernel \
 # JupyterLab & Notebook with Extensions
 # ------------------------------------------------------------------
 
-# Install Jupyter packages
+# Install Jupyter packages (updated for compatibility)
 RUN $PIP_INSTALL \
-    jupyterlab==4.0.5 \
-    jupyter_server==2.7.2 \
-    notebook==7.0.3 \
-    jupyter==1.0.0
+    "jupyterlab>=4.0.0,<5.0.0" \
+    "jupyter_server>=2.7.0,<3.0.0" \
+    "notebook>=7.0.0,<8.0.0" \
+    "jupyter>=1.0.0" \
+    "jupyter-events>=0.7.0"
 
-# Install Node.js for Jupyter extensions (updated versions for compatibility)
+# Install Node.js for JupyterLab extensions
 RUN curl -sL https://deb.nodesource.com/setup_18.x | bash && \
     $APT_INSTALL nodejs && \
     $PIP_INSTALL \
-        jupyter_contrib_nbextensions==0.7.0 \
-        jupyter_nbextensions_configurator==0.6.3 \
-        jupyterlab-widgets==3.0.8 && \
+        jupyterlab-widgets && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     python3.12 -m pip cache purge
-
-# Enable nbextensions and menubar (with error handling)
-RUN jupyter nbextensions_configurator enable --user || true && \
-    jupyter contrib nbextension install --user || true
-
-# Enable useful Jupyter Notebook extensions (with error handling for compatibility)
-RUN jupyter nbextension enable spellchecker/main || true && \
-    jupyter nbextension enable snippets_menu/main || true && \
-    jupyter nbextension enable snippets/main || true && \
-    jupyter nbextension enable freeze/main || true && \
-    jupyter nbextension enable livemdpreview/livemdpreview || true && \
-    jupyter nbextension enable highlight_selected_word/main || true && \
-    jupyter nbextension enable execute_time/ExecuteTime || true && \
-    jupyter nbextension enable toc2/main || true
 
 # ==================================================================
 # SSH Configuration

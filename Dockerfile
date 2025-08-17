@@ -69,14 +69,11 @@ RUN apt-get update --fix-missing && $APT_INSTALL \
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1 \
  && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
 
-# Upgrade pip and install essential tools
+# Upgrade pip to latest version
 RUN python3 -m pip install --upgrade pip setuptools wheel
 
 # Create workspace dir
 WORKDIR /workspace
-
-# Install uv (fast Python package manager) for ComfyUI compatibility
-RUN $PIP_INSTALL uv
 
 # Configure bash completion and readline
 RUN echo 'source /etc/bash_completion' >> /root/.bashrc \
@@ -84,102 +81,11 @@ RUN echo 'source /etc/bash_completion' >> /root/.bashrc \
  && echo 'set show-all-if-ambiguous on' >> /root/.inputrc \
  && echo 'set completion-query-items 200' >> /root/.inputrc
 
-# Install PyTorch + related (matching CUDA 12.8)
-RUN $PIP_INSTALL \
-    "torch==2.8.0+cu128" \
-    "torchvision==0.23.0+cu128" \
-    "torchaudio==2.8.0" \
-    --index-url https://download.pytorch.org/whl/cu128
-
-# Essential Python packages for data science and ML
-RUN $PIP_INSTALL \
-    numpy \
-    scipy \
-    pandas \
-    matplotlib \
-    seaborn \
-    scikit-learn \
-    scikit-image \
-    "opencv-python-headless==4.10.0.84" \
-    pillow \
-    tqdm \
-    ipython \
-    ipywidgets \
-    fastapi \
-    uvicorn \
-    pydantic \
-    imageio-ffmpeg
-
-# Install Platform-specific Python packages
-RUN $PIP_INSTALL \
-    huggingface_hub[cli] \
-    comfy-cli
-
-# Install Wan2.2 specific requirements
-RUN $PIP_INSTALL \
-    "diffusers>=0.31.0" \
-    "transformers>=4.49.0" \
-    "tokenizers>=0.20.3" \
-    "accelerate>=1.1.1" \
-    "imageio[ffmpeg]" \
-    easydict \
-    ftfy \
-    dashscope \
-    imageio-ffmpeg
-
-# Install flash attention (requires compilation, done separately for better error handling)
-RUN $PIP_INSTALL flash_attn --no-build-isolation || echo "Flash attention installation failed, continuing without it"
-
-# Install ComfyUI specific requirements
-RUN $PIP_INSTALL \
-    "comfyui-frontend-package==1.25.8" \
-    "comfyui-workflow-templates==0.1.59" \
-    "comfyui-embedded-docs==0.2.6" \
-    torchsde \
-    einops \
-    sentencepiece \
-    "safetensors>=0.4.2" \
-    "aiohttp>=3.11.8" \
-    "yarl>=1.18.0" \
-    pyyaml \
-    psutil \
-    alembic \
-    SQLAlchemy \
-    "av>=14.2.0" \
-    "kornia>=0.7.1" \
-    spandrel \
-    soundfile \
-    "pydantic-settings~=2.0" \
-    onnx \
-    onnxruntime-gpu
-
-# Install optional performance packages for ComfyUI
-RUN $PIP_INSTALL sageattention || echo "SageAttention installation failed, continuing without it"
-
-# Install ipykernel so you can select this env in notebooks
-RUN $PIP_INSTALL ipykernel \
- && python3 -m ipykernel install --user --name torch28 --display-name "Python (torch2.8-cu128)"
-
-# ==================================================================
-# JupyterLab & Notebook with Extensions
-# ------------------------------------------------------------------
-
-# Install Jupyter packages (updated for compatibility)
-RUN $PIP_INSTALL \
-    "jupyterlab>=4.0.0,<5.0.0" \
-    "jupyter_server>=2.7.0,<3.0.0" \
-    "notebook>=7.0.0,<8.0.0" \
-    "jupyter>=1.0.0" \
-    "jupyter-events>=0.7.0"
-
-# Install Node.js for JupyterLab extensions
+# Install Node.js for JupyterLab extensions (needed at build time)
 RUN curl -sL https://deb.nodesource.com/setup_18.x | bash && \
     $APT_INSTALL nodejs && \
-    $PIP_INSTALL \
-        jupyterlab-widgets && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    python3 -m pip cache purge
+    rm -rf /var/lib/apt/lists/*
 
 # ==================================================================
 # SSH Configuration

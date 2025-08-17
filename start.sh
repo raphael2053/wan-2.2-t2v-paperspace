@@ -39,8 +39,123 @@ source "$VENV_PATH/bin/activate"
 export PATH="$VENV_PATH/bin:$PATH"
 echo "✅ Virtual environment activated (with access to system packages)"
 
+# Ensure venv activation is in bashrc (check if not already added)
+if ! grep -q "Auto-activate virtual environment" /root/.bashrc; then
+    echo "" >> /root/.bashrc
+    echo "# Environment variables for persistent workspace" >> /root/.bashrc
+    echo "export WORKSPACE_PATH=\"/workspace\"" >> /root/.bashrc
+    echo "export COMFYUI_PATH=\"/workspace/comfyui\"" >> /root/.bashrc
+    echo "export VENV_PATH=\"/workspace/venv\"" >> /root/.bashrc
+    echo "export UV_LINK_MODE=copy" >> /root/.bashrc
+    echo "" >> /root/.bashrc
+    echo "# Auto-activate virtual environment" >> /root/.bashrc
+    echo "if [ -f \"\$VENV_PATH/bin/activate\" ]; then" >> /root/.bashrc
+    echo "    source \"\$VENV_PATH/bin/activate\"" >> /root/.bashrc
+    echo "    export PATH=\"\$VENV_PATH/bin:\$PATH\"" >> /root/.bashrc
+    echo "fi" >> /root/.bashrc
+    echo "" >> /root/.bashrc
+    echo "# ComfyUI convenience aliases" >> /root/.bashrc
+    echo "alias comfyinstall='comfy --workspace=\$COMFYUI_PATH install'" >> /root/.bashrc
+    echo "alias comfylaunch='cd \$COMFYUI_PATH && \$VENV_PATH/bin/python main.py --listen 0.0.0.0 --port 8080'" >> /root/.bashrc
+    echo "alias comfypip='find \$COMFYUI_PATH -type f -name requirements.txt -exec \$VENV_PATH/bin/pip install -r \"{}\" \\;'" >> /root/.bashrc
+    echo "✅ Virtual environment activation added to shell profile"
+fi
+
 # Upgrade pip in venv (safe to do on existing venv)
 pip install --upgrade pip
+
+# Install uv package manager in venv (required by ComfyUI-Manager)
+echo "📦 Installing uv package manager in virtual environment..."
+pip install uv
+
+# ==================================================================
+# Core Python Package Installation
+# ------------------------------------------------------------------
+
+echo "📦 Installing PyTorch and CUDA packages..."
+pip install \
+    "torch==2.8.0+cu128" \
+    "torchvision==0.23.0+cu128" \
+    "torchaudio==2.8.0" \
+    --index-url https://download.pytorch.org/whl/cu128
+
+echo "📦 Installing essential Python packages for data science and ML..."
+pip install \
+    numpy \
+    scipy \
+    pandas \
+    matplotlib \
+    seaborn \
+    scikit-learn \
+    scikit-image \
+    "opencv-python-headless==4.10.0.84" \
+    pillow \
+    tqdm \
+    ipython \
+    ipywidgets \
+    fastapi \
+    uvicorn \
+    pydantic \
+    imageio-ffmpeg
+
+echo "📦 Installing platform-specific Python packages..."
+pip install \
+    huggingface_hub[cli] \
+    comfy-cli
+
+echo "📦 Installing Wan2.2 specific requirements..."
+pip install \
+    "diffusers>=0.31.0" \
+    "transformers>=4.49.0" \
+    "tokenizers>=0.20.3" \
+    "accelerate>=1.1.1" \
+    "imageio[ffmpeg]" \
+    easydict \
+    ftfy \
+    dashscope \
+    imageio-ffmpeg
+
+echo "📦 Installing flash attention (may take a while)..."
+pip install flash_attn --no-build-isolation || echo "⚠️  Flash attention installation failed, continuing without it"
+
+echo "📦 Installing ComfyUI specific requirements..."
+pip install \
+    "comfyui-frontend-package==1.25.8" \
+    "comfyui-workflow-templates==0.1.59" \
+    "comfyui-embedded-docs==0.2.6" \
+    torchsde \
+    einops \
+    sentencepiece \
+    "safetensors>=0.4.2" \
+    "aiohttp>=3.11.8" \
+    "yarl>=1.18.0" \
+    pyyaml \
+    psutil \
+    alembic \
+    SQLAlchemy \
+    "av>=14.2.0" \
+    "kornia>=0.7.1" \
+    spandrel \
+    soundfile \
+    "pydantic-settings~=2.0" \
+    onnx \
+    onnxruntime-gpu
+
+echo "📦 Installing optional performance packages..."
+pip install sageattention || echo "⚠️  SageAttention installation failed, continuing without it"
+
+echo "📦 Installing Jupyter packages..."
+pip install \
+    "jupyterlab>=4.0.0,<5.0.0" \
+    "jupyter_server>=2.7.0,<3.0.0" \
+    "notebook>=7.0.0,<8.0.0" \
+    "jupyter>=1.0.0" \
+    "jupyter-events>=0.7.0" \
+    jupyterlab-widgets
+
+echo "📦 Installing ipykernel for notebook environments..."
+pip install ipykernel
+python -m ipykernel install --user --name torch28 --display-name "Python (torch2.8-cu128)"
 
 # Install user requirements if they exist
 if [ -f "$WORKSPACE_PATH/requirements.txt" ]; then
@@ -56,6 +171,8 @@ fi
 # Set ComfyUI default path
 echo "Setting ComfyUI default workspace path..."
 comfy set-default "$COMFYUI_PATH/" || true
+echo "✅ ComfyUI workspace configured"
+echo "💡 Use 'comfylaunch' command to start ComfyUI with persistent venv"
 
 # ==================================================================
 # Jupyter Setup

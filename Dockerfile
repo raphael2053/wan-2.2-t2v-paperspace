@@ -229,24 +229,55 @@ fi
 
 if [ -d "$WORKSPACE_DIR" ] && [ -f "$WORKSPACE_DIR/main.py" ]; then
     echo "ComfyUI directory exists and main.py found"
-    comfy set-default "$WORKSPACE_DIR/" 2>/dev/null || echo "Could not set ComfyUI default path"
     
-    # Start ComfyUI in background
+    # Set ComfyUI default path with proper error handling
+    if comfy set-default "$WORKSPACE_DIR/" 2>/dev/null; then
+        echo "ComfyUI default path set successfully"
+    else
+        echo "Could not set ComfyUI default path, but continuing..."
+        # Initialize ComfyUI config manually if needed
+        mkdir -p ~/.config/comfy-cli
+        echo "{\"recent_workspaces\": [\"$WORKSPACE_DIR\"], \"tracking_enabled\": true}" > ~/.config/comfy-cli/config.json
+    fi
+    
+    # Set tracking consent to avoid interactive prompt
+    export COMFY_TRACKING_ENABLED=1
+    
+    # Start ComfyUI in background with direct Python execution to avoid interactive prompts
     echo "Starting ComfyUI..."
     cd "$WORKSPACE_DIR"
-    nohup comfy launch -- --listen 0.0.0.0 --port 8080 > /var/log/comfyui.log 2>&1 &
+    
+    # Try comfy launch first, with timeout in case it hangs
+    timeout 30 bash -c "echo 'y' | comfy launch -- --listen 0.0.0.0 --port 8080" > /var/log/comfyui.log 2>&1 &
     COMFY_PID=$!
-    echo "ComfyUI started with PID: $COMFY_PID on port 8080"
-    echo "ComfyUI is running as an independent process"
+    
+    # Wait a moment to see if it starts properly
+    sleep 10
+    if kill -0 $COMFY_PID 2>/dev/null; then
+        echo "ComfyUI started with PID: $COMFY_PID on port 8080"
+        echo "ComfyUI is running as an independent process"
+    else
+        echo "ComfyUI launch timed out or failed, trying direct Python execution..."
+        # Fallback to direct Python execution
+        nohup python main.py --listen 0.0.0.0 --port 8080 > /var/log/comfyui.log 2>&1 &
+        COMFY_PID=$!
+        sleep 5
+        if kill -0 $COMFY_PID 2>/dev/null; then
+            echo "ComfyUI started with direct Python execution, PID: $COMFY_PID"
+        else
+            echo "WARNING: ComfyUI failed to start with both methods"
+        fi
+    fi
+    
     echo "ComfyUI logs available at: /var/log/comfyui.log"
     
-    # Wait a moment and check if ComfyUI is still running
-    sleep 5
+    # Final status check
+    sleep 2
     if kill -0 $COMFY_PID 2>/dev/null; then
-        echo "ComfyUI is running successfully"
+        echo "✅ ComfyUI is running successfully"
         echo "Access ComfyUI at: http://localhost:8080"
     else
-        echo "WARNING: ComfyUI may have failed to start, check logs at /var/log/comfyui.log"
+        echo "❌ WARNING: ComfyUI may have failed to start, check logs at /var/log/comfyui.log"
     fi
 else
     echo "ComfyUI installation failed, skipping ComfyUI startup"
@@ -262,7 +293,7 @@ cd /workspace
 
 # Start Jupyter Lab
 echo "Starting Jupyter Lab..."
-exec jupyter lab --allow-root --ip=0.0.0.0 --port=8888 --no-browser --ServerApp.token='' --ServerApp.password='' --ServerApp.trust_xheaders=True --ServerApp.disable_check_xsrf=False --ServerApp.allow_remote_access=True --ServerApp.allow_origin=* --ServerApp.allow_credentials=True
+exec jupyter lab --allow-root --ip=0.0.0.0 --port=8888 --no-browser --IdentityProvider.token='' --ServerApp.password='' --ServerApp.trust_xheaders=True --ServerApp.disable_check_xsrf=False --ServerApp.allow_remote_access=True --ServerApp.allow_origin=* --ServerApp.allow_credentials=True
 EOF
 
 RUN chmod +x /start.sh

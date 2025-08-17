@@ -16,6 +16,7 @@ ENV PIP_INSTALL="python3 -m pip --no-cache-dir install"
 # Path
 ENV WORKSPACE_PATH="/workspace"
 ENV COMFYUI_PATH="/workspace/comfyui"
+ENV VENV_PATH="/workspace/venv"
 
 # Set up locale and essentials
 RUN apt-get update --fix-missing && $APT_INSTALL \
@@ -70,6 +71,9 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1 \
 
 # Upgrade pip and install essential tools
 RUN python3 -m pip install --upgrade pip setuptools wheel
+
+# Create workspace dir
+WORKDIR /workspace
 
 # Install uv (fast Python package manager) for ComfyUI compatibility
 RUN $PIP_INSTALL uv
@@ -152,9 +156,6 @@ RUN $PIP_INSTALL \
 # Install optional performance packages for ComfyUI
 RUN $PIP_INSTALL sageattention || echo "SageAttention installation failed, continuing without it"
 
-# Create workspace dir
-WORKDIR /workspace
-
 # Install ipykernel so you can select this env in notebooks
 RUN $PIP_INSTALL ipykernel \
  && python3 -m ipykernel install --user --name torch28 --display-name "Python (torch2.8-cu128)"
@@ -192,51 +193,8 @@ RUN mkdir -p /var/run/sshd && \
     sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 
-# Create startup script to handle SSH and Jupyter
-RUN tee /start.sh > /dev/null <<'EOF'
-#!/bin/bash
-set -e
-
-# Setup SSH keys from environment if provided
-if [ -n "$PUBLIC_KEY" ]; then
-    mkdir -p /root/.ssh
-    chmod 700 /root/.ssh
-    echo "$PUBLIC_KEY" > /root/.ssh/authorized_keys
-    chmod 600 /root/.ssh/authorized_keys
-    echo "SSH public key configured from PUBLIC_KEY environment variable"
-else
-    echo "No PUBLIC_KEY provided at startup - SSH key authentication not configured"
-fi
-
-# Start SSH daemon
-service ssh start
-if [ $? -eq 0 ]; then
-    echo "SSH service started successfully"
-else
-    echo "Failed to start SSH service"
-    exit 1
-fi
-
-# ==================================================================
-# ComfyUI Setup
-# ------------------------------------------------------------------
-
-# Set ComfyUI default path
-echo "Setting ComfyUI default workspace path..."
-comfy set-default "$COMFYUI_PATH/" || true
-
-# ==================================================================
-# Jupyter Setup
-# ------------------------------------------------------------------
-
-# Change back to workspace root
-cd $WORKSPACE_PATH
-
-# Start Jupyter Lab
-echo "Starting Jupyter Lab..."
-exec jupyter lab --allow-root --ip=0.0.0.0 --port=8888 --no-browser --IdentityProvider.token='' --ServerApp.password='' --ServerApp.trust_xheaders=True --ServerApp.disable_check_xsrf=False --ServerApp.allow_remote_access=True --ServerApp.allow_origin=* --ServerApp.allow_credentials=True
-EOF
-
+# Copy startup script
+COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
 # ==================================================================

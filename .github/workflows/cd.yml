@@ -43,6 +43,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: raphael2057/torch28-cu128-runpod:v0.0.4
+          tags: raphael2057/torch28-cu128-runpod:v0.0.5
           cache-from: type=gha
           cache-to: type=gha,mode=max

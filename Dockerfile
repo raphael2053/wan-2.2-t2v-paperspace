@@ -13,6 +13,10 @@ ENV PUBLIC_KEY="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDTZDMPu+VfsxfKyR1geHFo8FoU
 ENV APT_INSTALL="apt-get install -y --no-install-recommends"
 ENV PIP_INSTALL="python3 -m pip --no-cache-dir install"
 
+# Path
+ENV WORKSPACE_PATH="/workspace"
+ENV COMFYUI_PATH="/workspace/comfyui"
+
 # Set up locale and essentials
 RUN apt-get update --fix-missing && $APT_INSTALL \
     software-properties-common \
@@ -50,6 +54,14 @@ RUN apt-get update --fix-missing && $APT_INSTALL \
     sudo \
     dialog \
     ninja-build \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    libglib2.0-0 \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Ensure python3 is default python
@@ -84,14 +96,15 @@ RUN $PIP_INSTALL \
     seaborn \
     scikit-learn \
     scikit-image \
-    opencv-python \
+    "opencv-python-headless==4.10.0.84" \
     pillow \
     tqdm \
     ipython \
     ipywidgets \
     fastapi \
     uvicorn \
-    pydantic
+    pydantic \
+    imageio-ffmpeg
 
 # Install Platform-specific Python packages
 RUN $PIP_INSTALL \
@@ -132,7 +145,12 @@ RUN $PIP_INSTALL \
     "kornia>=0.7.1" \
     spandrel \
     soundfile \
-    "pydantic-settings~=2.0"
+    "pydantic-settings~=2.0" \
+    onnx \
+    onnxruntime-gpu
+
+# Install optional performance packages for ComfyUI
+RUN $PIP_INSTALL sageattention || echo "SageAttention installation failed, continuing without it"
 
 # Create workspace dir
 WORKDIR /workspace
@@ -203,93 +221,16 @@ fi
 # ComfyUI Setup
 # ------------------------------------------------------------------
 
-# Setup ComfyUI
-echo "Setting up ComfyUI..."
-export WORKSPACE_DIR="/workspace/comfyui"
-
-# Create ComfyUI workspace directory
-mkdir -p "$WORKSPACE_DIR"
-
-# Install ComfyUI only if it doesn't exist
-if [ ! -f "$WORKSPACE_DIR/main.py" ]; then
-    echo "ComfyUI not found, installing to workspace..."
-    cd "$WORKSPACE_DIR"
-    
-    # Install ComfyUI with better error handling
-    echo "y" | comfy --workspace="$WORKSPACE_DIR" install || {
-        echo "ComfyUI installation failed with comfy-cli, trying alternative method..."
-        git clone https://github.com/comfyanonymous/ComfyUI.git . || {
-            echo "Failed to clone ComfyUI repository"
-            echo "Continuing without ComfyUI..."
-        }
-    }
-else
-    echo "ComfyUI already installed, skipping installation"
-fi
-
-if [ -d "$WORKSPACE_DIR" ] && [ -f "$WORKSPACE_DIR/main.py" ]; then
-    echo "ComfyUI directory exists and main.py found"
-    
-    # Set ComfyUI default path with proper error handling
-    if comfy set-default "$WORKSPACE_DIR/" 2>/dev/null; then
-        echo "ComfyUI default path set successfully"
-    else
-        echo "Could not set ComfyUI default path, but continuing..."
-        # Initialize ComfyUI config manually if needed
-        mkdir -p ~/.config/comfy-cli
-        echo "{\"recent_workspaces\": [\"$WORKSPACE_DIR\"], \"tracking_enabled\": true}" > ~/.config/comfy-cli/config.json
-    fi
-    
-    # Set tracking consent to avoid interactive prompt
-    export COMFY_TRACKING_ENABLED=1
-    
-    # Start ComfyUI in background with direct Python execution to avoid interactive prompts
-    echo "Starting ComfyUI..."
-    cd "$WORKSPACE_DIR"
-    
-    # Try comfy launch first, with timeout in case it hangs
-    timeout 30 bash -c "echo 'y' | comfy launch -- --listen 0.0.0.0 --port 8080" > /var/log/comfyui.log 2>&1 &
-    COMFY_PID=$!
-    
-    # Wait a moment to see if it starts properly
-    sleep 10
-    if kill -0 $COMFY_PID 2>/dev/null; then
-        echo "ComfyUI started with PID: $COMFY_PID on port 8080"
-        echo "ComfyUI is running as an independent process"
-    else
-        echo "ComfyUI launch timed out or failed, trying direct Python execution..."
-        # Fallback to direct Python execution
-        nohup python main.py --listen 0.0.0.0 --port 8080 > /var/log/comfyui.log 2>&1 &
-        COMFY_PID=$!
-        sleep 5
-        if kill -0 $COMFY_PID 2>/dev/null; then
-            echo "ComfyUI started with direct Python execution, PID: $COMFY_PID"
-        else
-            echo "WARNING: ComfyUI failed to start with both methods"
-        fi
-    fi
-    
-    echo "ComfyUI logs available at: /var/log/comfyui.log"
-    
-    # Final status check
-    sleep 2
-    if kill -0 $COMFY_PID 2>/dev/null; then
-        echo "✅ ComfyUI is running successfully"
-        echo "Access ComfyUI at: http://localhost:8080"
-    else
-        echo "❌ WARNING: ComfyUI may have failed to start, check logs at /var/log/comfyui.log"
-    fi
-else
-    echo "ComfyUI installation failed, skipping ComfyUI startup"
-    echo "Check the installation logs above for details"
-fi
+# Set ComfyUI default path
+echo "Setting ComfyUI default workspace path..."
+comfy set-default "$COMFYUI_PATH/" || true
 
 # ==================================================================
 # Jupyter Setup
 # ------------------------------------------------------------------
 
 # Change back to workspace root
-cd /workspace
+cd $WORKSPACE_PATH
 
 # Start Jupyter Lab
 echo "Starting Jupyter Lab..."

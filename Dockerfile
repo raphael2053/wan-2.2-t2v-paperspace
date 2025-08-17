@@ -17,6 +17,7 @@ ENV PIP_INSTALL="python3 -m pip --no-cache-dir install"
 ENV WORKSPACE_PATH="/workspace"
 ENV COMFYUI_PATH="/workspace/comfyui"
 ENV VENV_PATH="/workspace/venv"
+ENV UV_LINK_MODE=copy
 
 # Set up locale and essentials
 RUN apt-get update --fix-missing && $APT_INSTALL \

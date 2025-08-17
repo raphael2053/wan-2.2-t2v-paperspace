@@ -72,12 +72,17 @@ pip install uv
 # Core Python Package Installation
 # ------------------------------------------------------------------
 
-echo "📦 Installing PyTorch and CUDA packages..."
-pip install \
-    "torch==2.8.0+cu128" \
-    "torchvision==0.23.0+cu128" \
-    "torchaudio==2.8.0" \
-    --index-url https://download.pytorch.org/whl/cu128
+# Check if packages are already installed to skip reinstallation
+if python -c "import torch" 2>/dev/null; then
+    echo "✅ PyTorch already installed, skipping..."
+else
+    echo "📦 Installing PyTorch and CUDA packages..."
+    pip install \
+        "torch==2.8.0+cu128" \
+        "torchvision==0.23.0+cu128" \
+        "torchaudio==2.8.0" \
+        --index-url https://download.pytorch.org/whl/cu128
+fi
 
 echo "📦 Installing essential Python packages for data science and ML..."
 pip install \
@@ -96,7 +101,7 @@ pip install \
     fastapi \
     uvicorn \
     pydantic \
-    imageio-ffmpeg
+    imageio-ffmpeg || echo "⚠️  Some essential packages failed to install, continuing..."
 
 echo "📦 Installing platform-specific Python packages..."
 pip install \
@@ -170,7 +175,11 @@ fi
 
 # Set ComfyUI default path
 echo "Setting ComfyUI default workspace path..."
-comfy set-default "$COMFYUI_PATH/" || true
+if command -v comfy &> /dev/null; then
+    comfy set-default "$COMFYUI_PATH/" || echo "⚠️  ComfyUI configuration failed, but continuing..."
+else
+    echo "⚠️  ComfyUI CLI not found, skipping default path setup"
+fi
 echo "✅ ComfyUI workspace configured"
 echo "💡 Use 'comfylaunch' command to start ComfyUI with persistent venv"
 

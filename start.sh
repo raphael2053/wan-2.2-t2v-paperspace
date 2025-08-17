@@ -1,17 +1,6 @@
 #!/bin/bash
 set -e
 
-# Setup SSH keys from environment if provided
-if [ -n "$PUBLIC_KEY" ]; then
-    mkdir -p /root/.ssh
-    chmod 700 /root/.ssh
-    echo "$PUBLIC_KEY" > /root/.ssh/authorized_keys
-    chmod 600 /root/.ssh/authorized_keys
-    echo "SSH public key configured from PUBLIC_KEY environment variable"
-else
-    echo "No PUBLIC_KEY provided at startup - SSH key authentication not configured"
-fi
-
 # Start SSH daemon
 service ssh start
 if [ $? -eq 0 ]; then
@@ -93,7 +82,6 @@ pip install \
     seaborn \
     scikit-learn \
     scikit-image \
-    "opencv-python-headless==4.10.0.84" \
     pillow \
     tqdm \
     ipython \
@@ -102,6 +90,8 @@ pip install \
     uvicorn \
     pydantic \
     imageio-ffmpeg || echo "⚠️  Some essential packages failed to install, continuing..."
+
+# Note: Installing opencv-python later instead of opencv-python-headless to avoid conflicts
 
 echo "📦 Installing platform-specific Python packages..."
 pip install \
@@ -143,8 +133,37 @@ pip install \
     spandrel \
     soundfile \
     "pydantic-settings~=2.0" \
-    onnx \
-    onnxruntime-gpu
+    "onnx>=1.12.0" \
+    "onnxruntime-gpu>=1.16.0" \
+    coloredlogs \
+    humanfriendly
+
+echo "📦 Installing ComfyUI Manager and custom node requirements..."
+pip install \
+    PyGithub \
+    matrix-nio \
+    toml \
+    aiofiles \
+    h2 \
+    jsonschema \
+    unpaddedbase64 \
+    pycryptodome \
+    aiohttp-socks \
+    python-socks \
+    pyjwt \
+    pynacl \
+    color-matcher \
+    mss \
+    opencv-python \
+    "peft>=0.15.0" \
+    pyloudnorm \
+    "gguf>=0.14.0" \
+    future \
+    GitPython \
+    rich \
+    typer
+
+# Note: chardet and protobuf are already installed as dependencies
 
 echo "📦 Installing optional performance packages..."
 pip install sageattention || echo "⚠️  SageAttention installation failed, continuing without it"
@@ -162,6 +181,23 @@ echo "📦 Installing ipykernel for notebook environments..."
 pip install ipykernel
 python -m ipykernel install --user --name torch28 --display-name "Python (torch2.8-cu128)"
 
+# Clean package caches to save space
+echo "🧹 Cleaning package caches to save disk space..."
+pip cache purge
+python -m pip cache purge 2>/dev/null || true
+if command -v uv &> /dev/null; then
+    uv cache clean 2>/dev/null || true
+fi
+
+# Remove temporary files and caches
+rm -rf /tmp/* 2>/dev/null || true
+rm -rf /root/.cache/pip/* 2>/dev/null || true
+rm -rf /root/.cache/uv/* 2>/dev/null || true
+find /workspace/venv -name "*.pyc" -delete 2>/dev/null || true
+find /workspace/venv -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
+echo "✅ Package installation and cleanup completed"
+
 # Install user requirements if they exist
 if [ -f "$WORKSPACE_PATH/requirements.txt" ]; then
     echo "📦 Installing additional packages from requirements.txt..."
@@ -172,6 +208,15 @@ fi
 # ==================================================================
 # ComfyUI Setup
 # ------------------------------------------------------------------
+
+# Create ComfyUI directory if it doesn't exist
+mkdir -p "$COMFYUI_PATH"
+
+# Install ComfyUI requirements if they exist
+if [ -f "$COMFYUI_PATH/requirements.txt" ]; then
+    echo "📦 Installing ComfyUI requirements.txt..."
+    pip install -r "$COMFYUI_PATH/requirements.txt" || echo "⚠️  Some ComfyUI requirements failed to install"
+fi
 
 # Set ComfyUI default path
 echo "Setting ComfyUI default workspace path..."
